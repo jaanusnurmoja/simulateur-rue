@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulateur du revenu universel d’existence</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-tab="household">
+  <header>
+    <h1 id="page-title"></h1>
+    <div class="language-switch">
+      <button data-language="fr">FR</button>
+      <button data-language="et">ET</button>
+    </div>
+  </header>
+
+  <nav class="tab-bar" id="tab-bar"></nav>
+
+  <main>
+    <!-- Formulaire : rempli par renderPage() -->
+    <div id="input-panel"></div>
+
+    <!-- Résultats : un panneau par onglet -->
+    <div>
+      <div class="card sticky-result household-only" id="household-result"></div>
+      <div class="card sticky-result society-only" id="society-result"></div>
+    </div>
+  </main>
+
+  <footer class="card charter" id="charter"></footer>
+
+  <!-- Ordre important : les textes d’abord, puis l’application -->
+  <script src="translations.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Et si on essayait le revenu universel d’existence ?</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d2330;--mu:#5d6574;--ln:#d9d6cc;--ac:#1f5f8b;--ok:#1d7a4d;--ko:#b3402a;--wa:#fff4d6}
+@media (prefers-color-scheme:dark){:root{--bg:#14171d;--card:#1d222b;--tx:#e8eaee;--mu:#9aa3b2;--ln:#343b48;--ac:#6fb1e0;--ok:#5bc58f;--ko:#ef8a74;--wa:#3a3320}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,sans-serif}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 20px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:0 0 8px;color:var(--ac)}
+main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:0 20px 24px;max-width:1100px;margin:auto}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:14px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.g label{display:flex;flex-direction:column;font-size:12.5px;color:var(--mu)}
+input,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:6px;padding:5px 7px;width:100%}
+input[type=checkbox]{width:auto}.ck{flex-direction:row!important;gap:6px;align-items:center;display:block;}
+.sticky{position:sticky;top:10px}.big{font-size:28px;font-weight:700}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dotted var(--ln)}
+.bar{height:14px;border-radius:4px;background:var(--ac);margin:3px 0 8px;min-width:2px}.bar.n{background:var(--mu)}
+.pos{color:var(--ok)}.neg{color:var(--ko)}.lang button{padding:4px 10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);cursor:pointer}
+.lang button.on{background:var(--ac);color:var(--bg)}.warn{background:var(--wa);border-radius:6px;padding:8px;margin:6px 0;font-size:13px}
+nav.tabs{display:flex;gap:6px;padding:0 20px 10px;max-width:1100px;margin:auto}nav.tabs button{flex:1;padding:9px;border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:8px;cursor:pointer;font:inherit}nav.tabs button.on{background:var(--ac);color:var(--bg);font-weight:600}body[data-tab=soc] .me,body[data-tab=me] .soc{display:none}.dl{display:flex;justify-content:space-between;font-size:13px}.dbar{height:10px;margin:2px 0 9px;display:flex}.dbar i{display:block;height:100%;border-radius:3px}details summary{cursor:pointer;font-weight:600}small{color:var(--mu)}
+</style>
+</head>
+<body>
+<header><h1 id="ttl"></h1><div class="lang"><button data-l="fr">FR</button><button data-l="et">ET</button></div></header><nav class="tabs" id="tabs"></nav>
+<main><div id="form"></div><div><div class="card sticky me" id="res"></div><div class="card sticky soc" id="res2"></div></div></main>
+<footer class="card" id="charte" style="max-width:1060px;margin:0 auto 24px"></footer>
+<script>
+/* ============================================================
+   SIMULATEUR RUE — port fidèle du classeur Excel (feuilles « ET VOUS » + « SIMULATEUR »)
+   Les références entre crochets, ex. [SIMULATEUR!F56], renvoient aux cellules d’origine.
+   Les formules sont reproduites À L’IDENTIQUE, y compris leurs particularités.
+   Les endroits suspects sont marqués « ⚠ KONTROLLI » ; une correction est prête, mais
+   désactivée tant que APPLY_SUGGESTED_FIXES / FIX.xxx valent false.
+   ============================================================ */
+const APPLY_SUGGESTED_FIXES = false;                      // interrupteur général
+const FIX = {                                             // ou un par un
+  k75:  APPLY_SUGGESTED_FIXES,  // coefficient 0,75 → 0,66 (personne 2, TAN)
+  f57:  APPLY_SUGGESTED_FIXES,  // placement du 0,66 dans la cotisation de la personne 2
+  f61:  APPLY_SUGGESTED_FIXES,  // dénominateur du taux de prélèvement
+  g46:  APPLY_SUGGESTED_FIXES,  // net d’activité de la personne 2 (formule absente)
+  pfg:  APPLY_SUGGESTED_FIXES   // progressivité aussi pour les déciles 2 et 3 (onglet société)
+};
+
+function calc(p, F = FIX) {
+  const ru = p.ru;                                        // [SIMULATEUR!C11:C15] 0-14, 14-18, 18-25, 25+, 65+
+  const P = [p.p1, p.p2];
+  const ret = P.map(x => x.cat === "r");                  // [E29, E30] retraité.e
+  const ruPers = P.map(x => (x.cat === "y" ? ru[2] : 0) + (x.cat === "a" ? ru[3] : 0) + (x.cat === "r" ? ru[4] : 0)); // [F29, F30]
+  const ruEnf = p.kids[0] * ru[0] + p.kids[1] * ru[1] + p.kids[2] * ru[2];   // [F32]
+  const f52 = ruPers[0] + ruPers[1] + ruEnf;              // [F52] RU du foyer
+
+  // Net d’activité : [ET VOUS!F46] = F45*0,79
+  // ⚠ KONTROLLI : dans l’Excel, G46 (personne 2) n’a PAS de formule → vaut 0 si rien n’est saisi.
+  //   Correction : G46 = G45*0,79 comme pour la personne 1 (FIX.g46).
+  // Personne 1 : [F46] est une formule (0,79 × brut) que l’Excel laisse modifiable ; champ vide = formule d’origine.
+  const net = [P[0].net == null ? P[0].brut * 0.79 : P[0].net, F.g46 ? P[1].brut * 0.79 : P[1].net];
+
+  // [F49] Revenu disponible actuel
+  const cur = P.reduce((s, x, i) => s + net[i] + x.rpn + x.aides + x.af - x.imp - x.ifi - x.mut, 0);
+
+  // [F53] Revenu net d’activité et du patrimoine avec cotisation de 20 % (codée en dur : 0,8) et pension 66 %
+  const f53 = P.reduce((s, x, i) => s + (ret[i] ? 0.8 * (0.66 * x.brut + x.rpb) : 0.8 * (x.brut + x.rpb)), 0);
+
+  // Taux de cotisation [C56, C57] avec progressivité (seuil 1800 €) et TAN [C58, C59] (seuil 3000 €)
+  const rate = (i, cMax, prog, seuil, coef) => {
+    const x = P[i], b = ret[i] ? coef * x.brut + x.rpb : x.brut + x.rpb;
+    return prog && b < seuil ? cMax * (b / seuil) : cMax;
+  };
+  const c56 = rate(0, p.cot, p.prog1, 1800, 0.66);
+  const c57 = rate(1, p.cot, p.prog1, 1800, 0.66);
+  const c58 = rate(0, p.tan, p.prog2, 3000, 0.66);
+  // ⚠ KONTROLLI : [C59] utilise 0,75 alors que C56–C58 utilisent 0,66 → incohérence probable.
+  //   Correction : 0,66 (FIX.k75).
+  const c59 = rate(1, p.tan, p.prog2, 3000, F.k75 ? 0.66 : 0.75);
+
+  const f56 = ret[0] ? c56 * (0.66 * P[0].brut + P[0].rpb) : c56 * (P[0].brut + P[0].rpb);
+  // ⚠ KONTROLLI : [F57] écrit C57*0,66*(brut+patrimoine) : le 0,66 s’applique aussi aux revenus du
+  //   patrimoine, contrairement à F56 qui écrit C56*(0,66*brut+patrimoine).
+  //   Correction : C57*(0,66*brut+patrimoine) (FIX.f57).
+  const f57 = ret[1]
+    ? (F.f57 ? c57 * (0.66 * P[1].brut + P[1].rpb) : c57 * 0.66 * (P[1].brut + P[1].rpb))
+    : c57 * (P[1].brut + P[1].rpb);
+  const f58 = c58 * P[0].pat / 12;                        // [F58]
+  const f59 = c59 * P[1].pat / 12;                        // [F59]
+  const f60 = f56 + f57 + f58 + f59;                      // [F60] prélèvement total
+
+  // ⚠ KONTROLLI : [F61] dénominateur = 0,8*(brut+patrimoine) + RU, sans le coefficient 0,66 des
+  //   retraités. Correction : F60 / (F52 + F53) (FIX.f61) — identique tant qu’il n’y a pas de retraité.
+  const den = F.f61 ? f52 + f53 : 0.8 * P[0].brut + 0.8 * P[1].brut + 0.8 * P[0].rpb + 0.8 * P[1].rpb + f52;
+  const f61 = den ? f60 / den : null;
+
+  const f62 = f52 + f53 - f60;                            // [F62] revenu disponible avec le RUE
+  const gain = f62 - cur;                                 // [O31]
+  return { cur, f62, gain, pct: cur ? gain / cur : null, f52, f53, f60, f61, f56, f57, f58, f59 };
+}
+
+
+/* ============================================================
+   ONGLET « POUR LA SOCIÉTÉ » — port de « 3 COMPOSITION » et « 4 BILAN » (premier classeur)
+   Données INSEE codées en dur dans l’Excel : reprises telles quelles.
+   ============================================================ */
+const SOC = { uc:[1.1,1.15,1.21,1.34,1.46,1.59,1.69,1.82,1.9,2,2], nb:[10,10,10,10,10,10,10,10,10,9.9,0.1],  // [BILAN!E7:O8]
+  pat:[4500,14000,35000,110000,180000,250000,340000,490000,750000,2000000,10000000],                          // [BILAN!E9:O9]
+  brut:[138,1075,1675,2435,3140,4000,4900,6150,8112,15729,105000], aid:[700,500,400,300,250,200,120,80,65,40,0], // [E13:O13, E17:O17]
+  imp:[0,0,0,20,30,50,100,200,550,2000,25000], inc:[1050,1080,1100,1150,1184,1230,1240,1245,1247,1250,1250],    // [E18:O18, COMPOSITION!L35:L45]
+  w:[3,19,14,25,10,10,5,9,4,1], uce:[1,1,1,1.5,1.8,2.1,2.6,1.8,1.5,2.1], L29:1196.6, HH:31e6 };               // [COMPOSITION!C,I,L29] ; 31 M ménages en dur
+function societe(p, F = FIX) {
+  const R = p.ru, S_ = SOC, avg = a => a.reduce((s, x, i) => s + x * S_.nb[i], 0) / 100;
+  // [COMPOSITION!D17:D27] AUE par foyer-type.
+  // ⚠ KONTROLLI : « couple sans enfant » [D20] = C11+C12 (25+ et 65+) alors que les autres couples utilisent 2*C11.
+  //   Sans effet tant que 25 ans et plus = 65 ans et plus (1100 € / 1100 €) ; correction : 2*C11.
+  const D = [R[2], R[3], R[4], R[3] + R[4], 2*R[3] + R[0], 2*R[3] + 2*R[0], 2*R[3] + 2*R[0] + R[1], R[3] + R[0] + R[1], 2*R[3], 2*R[3] + 2*R[0]];
+  const K29 = D.reduce((s, d, i) => s + d * S_.w[i], 0) / S_.uce.reduce((s, u, i) => s + u * S_.w[i], 0);  // [K29] AUE moyen par UC
+  const L33 = K29 / S_.L29, aue = S_.inc.map((l, i) => l * L33 * S_.uc[i]);                                // [K35:K45]*[I35:I45] = [BILAN!E27:O27]
+  const cur = [], n26 = [], c28 = [], t29 = [], n32 = [], g33 = [], g34 = [];
+  for (let i = 0; i < 11; i++) {
+    const b = S_.brut[i], pt = S_.pat[i];
+    cur[i] = b - 0.12*b - 0.097*b + S_.aid[i] - S_.imp[i];                                                 // [E21] : cot. 12 % + CSG 9,7 %
+    n26[i] = b - 0.2*b;                                                                                    // [E26] : cot. 20 % [C25]
+    t29[i] = i <= 4 && p.prog2 ? pt * p.tan * b / (3000*12) : p.tan * pt / 12;                              // [E29:O29]
+    const prog = i === 0 || (F.pfg && i < 3) ? p.prog1 : false;
+    // ⚠ KONTROLLI : [F28, G28] testent PRESENTATION!D19 et E19, cellules VIDES → la progressivité n’agit
+    //   que sur le 1er décile. Correction : appliquer C19 aussi aux déciles 2 et 3 (FIX.pfg).
+    // ⚠ KONTROLLI : [E28] ajoute « +E18 » (impôt du 1er décile, 0 dans les données) : référence parasite.
+    if (i <= 2) c28[i] = (prog ? b * p.cot * b / 1800 : p.cot * b) + (i === 0 ? S_.imp[0] : 0);
+    else if (i <= 6) c28[i] = p.cot * b;                                                                   // [H28:K28]
+    else c28[i] = (p.cot*b + p.tan*pt/12 > 0.55*(n26[i] + aue[i])) ? 0.55*(n26[i] + aue[i]) - t29[i] : p.cot*b; // [L28:O28] plafond 55 %
+    n32[i] = n26[i] - c28[i] - t29[i] + aue[i];                                                            // [E32]
+    g33[i] = n32[i] - cur[i]; g34[i] = g33[i] / cur[i];                                                    // [E33, E34]
+  }
+  const dAue = avg(aue), dC = avg(c28), dT = avg(t29), dN = avg(n26), dCur = avg(cur);
+  // ⚠ KONTROLLI : signe de [D31] = prélèvement − AUE, à l’inverse de [E31:O31] = AUE − prélèvement. Reproduit tel quel ; D38 en dépend.
+  const d31 = dC + dT - dAue, d35 = p.af / (12 * S_.HH), d36 = p.tva / (12 * S_.HH);
+  const bal = d31 + d35 + d36;                                                                             // [D38] excédent/déficit moyen par ménage et par mois
+  const rich = -(g33[9]*12*0.099*S_.HH + g33[10]*12*0.001*S_.HH);                                          // [PRESENTATION!C33] contribution des 10 % les plus riches
+  return { aue, cur, net: n32, g33, g34, dAue, dCur, dNet: dN - dC - dT + dAue, bal, balPct: bal / dAue, rich, richPct: rich / (dAue*12*S_.HH), K29 };
+}
+
+/* ---------------- Interface ---------------- */
+const T = {
+ fr: { ttl:"Et si on essayait le revenu universel d’existence ?", amounts:"1° Montant du RUE par mois et par âge", a0:"0-14 ans",a1:"14-18 ans",a2:"18-25 ans",a3:"25 ans et plus",a4:"65 ans et plus",
+  rates:"2° Taux de contribution", cot:"Cotisation sur le revenu brut (%)", prog1:"Progressivité : rev. brut < 1 800 €", tan:"Taxe sur les actifs nets (%)", prog2:"Progressivité : rev. brut < 3 000 €",
+  home:"3° Composition du foyer", cat:"Situation", y:"18-25 ans", a:"> 25 ans", r:"Retraité·e", none:"— (personne absente)", kids:"Enfants au foyer", k0:"0-14 ans", k1:"14-18 ans", k2:"18-25 ans",
+  inc:"4° Revenus mensuels, patrimoine, aides et impôts", p1:"Personne 1", p2:"Personne 2", brut:"Revenu brut d’activité (€)", net:"Revenu d’activité net de cotisations (€)", pat:"Patrimoine net d’emprunt (€)", rpb:"Revenus du patrimoine bruts (€)", rpn:"Revenus du patrimoine nets (€)", aides:"Aides sociales (€)", af:"Allocations familiales (€)", imp:"Impôt sur le revenu (€)", ifi:"I.F.I. (€)", mut:"Mutuelle (€)",
+  res:"Ça changerait quoi pour vous ?", now:"Revenu disponible actuel", tom:"Avec le RUE", gain:"Gain", ruf:"RUE du foyer", contrib:"Votre contribution", rate:"Taux de prélèvement", mo:"/ mois",
+  fixes:"Points à vérifier dans le classeur Excel d’origine", fixNote:"Par défaut, les calculs reproduisent l’Excel à l’identique. Cochez pour appliquer la correction suggérée.",
+  k75:"Personne 2 : coefficient 0,75 au lieu de 0,66 (taxe sur actifs nets, retraité).", f57:"Personne 2 : le 0,66 s’applique aussi aux revenus du patrimoine (cotisation, retraité).", f61:"Taux de prélèvement : dénominateur sans le coefficient 0,66 des retraités.", g46:"Personne 2 : le net d’activité n’a pas de formule (0,79 × brut pour la personne 1)." },
+ et: { ttl:"Mis oleks, kui prooviksime eksistentsi põhisissetulekut?", amounts:"1° Põhisissetuleku (RUE) suurus kuus vanuse järgi", a0:"0–14 a",a1:"14–18 a",a2:"18–25 a",a3:"25 a ja vanem",a4:"65 a ja vanem",
+  rates:"2° Sissemaksumäärad", cot:"Sissemakse brutotulult (%)", prog1:"Progressiivsus: brutotulu < 1 800 €", tan:"Netovara maks (%)", prog2:"Progressiivsus: brutotulu < 3 000 €",
+  home:"3° Leibkonna koosseis", cat:"Olukord", y:"18–25 a", a:"> 25 a", r:"Pensionär", none:"— (isik puudub)", kids:"Lapsed leibkonnas", k0:"0–14 a", k1:"14–18 a", k2:"18–25 a",
+  inc:"4° Igakuine tulu, vara, toetused ja maksud", p1:"Isik 1", p2:"Isik 2", brut:"Tegevustulu bruto (€)", net:"Tegevustulu neto sissemaksetest (€)", pat:"Netovara (laenudest puhastatud) (€)", rpb:"Varatulu bruto (€)", rpn:"Varatulu neto (€)", aides:"Sotsiaaltoetused (€)", af:"Peretoetused (€)", imp:"Tulumaks (€)", ifi:"Varamaks (I.F.I.) (€)", mut:"Täiendav tervisekindlustus (€)",
+  res:"Mida see teie jaoks muudaks?", now:"Praegune käepärane tulu", tom:"RUE-ga", gain:"Kasu", ruf:"Leibkonna RUE", contrib:"Teie sissemakse", rate:"Maksukoormus", mo:"/ kuu",
+  fixes:"Algses Exceli failis kontrollimist vajavad kohad", fixNote:"Vaikimisi järgivad arvutused Excelit täpselt. Märkige, et rakendada soovitatud parandus.",
+  k75:"Isik 2: koefitsient 0,75 asemel 0,66 (netovara maks, pensionär).", f57:"Isik 2: 0,66 rakendub ka varatulule (sissemakse, pensionär).", f61:"Maksukoormus: nimetaja ilma pensionäride koefitsiendita 0,66.", g46:"Isik 2: neto tegevustulu valem puudub (isikul 1: 0,79 × bruto)." }
+};
+let L = "fr";
+const S = { ru:[330,550,1100,1100,1100], cot:28, prog1:false, tan:1.5, prog2:false, kids:[0,0,0],
+  p1:{cat:"a",brut:1802,net:0,pat:0,rpb:0,rpn:0,aides:250,af:0,imp:0,ifi:0,mut:0},
+  p2:{cat:"",brut:0,net:0,pat:0,rpb:0,rpn:0,aides:0,af:0,imp:0,ifi:0,mut:0} };
+const $ = s => document.querySelector(s), t = k => T[L][k];
+const num = (v, d = 0) => isFinite(v) ? Number(v).toLocaleString(L === "fr" ? "fr-FR" : "et-EE", { minimumFractionDigits: d, maximumFractionDigits: d }) : "–";
+const nf = (id, v, step = 1, ph = "") => `<input type="number" step="${step}" data-id="${id}" value="${v}" placeholder="${ph}">`;
+const lab = (k, inner) => `<label>${t(k)}${inner}</label>`;
+
+function render() {
+  document.documentElement.lang = L; $("#ttl").textContent = t("ttl");
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.l === L));
+  const person = (key) => {
+    const x = S[key], opts = ["y","a","r"].concat(key === "p2" ? [""] : []).map(c => `<option value="${c}" ${x.cat === c ? "selected" : ""}>${t(c || "none")}</option>`).join("");
+    const f = ["brut","net","pat","rpb","rpn","aides","af","imp","ifi","mut"].map(k => lab(k, nf(key + "." + k, x[k], 1, k === "net" && key === "p1" ? t("auto") : ""))).join("");
+    return `<div class="card me"><h2>${t(key)}</h2><div class="g">${lab("cat", `<select data-id="${key}.cat">${opts}</select>`)}${f}</div></div>`;
+  };
+  $("#form").innerHTML = presetCard() +
+    `<div class="card"><h2>${t("amounts")}</h2><div class="g">${[0,1,2,3,4].map(i => lab("a" + i, nf("ru." + i, S.ru[i]))).join("")}</div></div>` +
+    `<div class="card"><h2>${t("rates")}</h2><div class="g">${lab("cot", nf("cot", S.cot, .1))}${lab("tan", nf("tan", S.tan, .1))}
+      <label class="ck"><input type="checkbox" data-id="prog1" ${S.prog1 ? "checked" : ""}>${t("prog1")}</label>
+      <label class="ck"><input type="checkbox" data-id="prog2" ${S.prog2 ? "checked" : ""}>${t("prog2")}</label></div></div>` +
+    `<div class="card me"><h2>${t("home")}</h2><div class="g">${[0,1,2].map(i => lab("k" + i, nf("kids." + i, S.kids[i]))).join("")}</div></div>` +
+    `<h2 class="me" style="margin:4px 2px">${t("inc")}</h2>` + person("p1") + person("p2") +
+    `<div class="card me"><details><summary>${t("fixes")}</summary><p><small>${t("fixNote")}</small></p>${["k75","f57","f61","g46"].map(k => `<label class="ck"><input type="checkbox" data-fix="${k}" ${FIX[k] ? "checked" : ""}>${t(k)}</label>`).join("")}</details></div>` + socInputs();
+  result(); result2(); tabs(); charter();
+}
+function result() {
+  const p = { ru:S.ru.map(Number), cot:S.cot / 100, tan:S.tan / 100, prog1:S.prog1, prog2:S.prog2, kids:S.kids.map(Number), p1:{ ...num2(S.p1), net: S.p1.net === "" ? null : Number(S.p1.net) || 0 }, p2:num2(S.p2) };
+  const r = calc(p), m = Math.max(r.cur, r.f62, 1);
+  $("#res").innerHTML = `<h2>${t("res")}</h2>
+    <div>${t("now")}<div class="bar n" style="width:${Math.max(0, r.cur / m * 100)}%"></div><b>${num(r.cur, 2)} €</b> ${t("mo")}</div>
+    <div>${t("tom")}<div class="bar" style="width:${Math.max(0, r.f62 / m * 100)}%"></div><b>${num(r.f62, 2)} €</b> ${t("mo")}</div>
+    <div class="big ${r.gain >= 0 ? "pos" : "neg"}">${r.gain >= 0 ? "+" : ""}${num(r.gain, 2)} € <small>${r.pct === null ? "" : "(" + (r.pct >= 0 ? "+" : "") + num(r.pct * 100, 1) + " %)"}</small></div>
+    <div class="row"><span>${t("ruf")}</span><span>${num(r.f52, 2)} €</span></div>
+    <div class="row"><span>${t("contrib")}</span><span>${num(r.f60, 2)} €</span></div>
+    <div class="row"><span>${t("rate")}</span><span>${r.f61 === null ? "–" : num(r.f61 * 100, 1) + " %"}</span></div>` +
+    (S.thr ? `<div class="row"><span>${t("thr")} : ${num(S.thr, 0)} €</span><b class="${r.f62 >= S.thr ? "pos" : "neg"}">${t(r.f62 >= S.thr ? "above" : "below")}</b></div>` : "");
+}
+const num2 = x => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "cat" ? v : Number(v) || 0]));
+document.addEventListener("input", e => {
+  const id = e.target.dataset.id; if (!id) return;
+  if (/^(p1|p2|kids)/.test(id)) { S.preset = ""; S.thr = 0; const q = $("[data-pre]"); if (q) q.value = ""; }
+  const v = e.target.type === "checkbox" ? e.target.checked : e.target.value, [a, b] = id.split(".");
+  if (b === undefined) S[a] = v; else (Array.isArray(S[a]) ? S[a] : S[a])[b] = v;
+  result(); result2();
+});
+document.addEventListener("change", e => { if (e.target.dataset.pre !== undefined) loadPreset(e.target.value); if (e.target.dataset.fix) { FIX[e.target.dataset.fix] = e.target.checked; result(); result2(); } });
+document.querySelector(".lang").addEventListener("click", e => { if (e.target.dataset.l) { L = e.target.dataset.l; render(); } });
+
+const TS = { fr:{ tb1:"Et vous ?", tb2:"Pour la société", s_in:"5° Financement hors cotisations (milliards € / an)", af:"Cotisations A.F. 3,3 % de la valeur ajoutée", tva:"TVA − réduction de cotisations",
+   pfg:"Progressivité aussi pour les déciles 2 et 3 (la cellule d’origine est vide).", s_ttl:"Ça changerait quoi pour la société ?", s_avg:"Ménage moyen : revenu net par mois", s_bal:"Excédent / déficit moyen par ménage et par mois", s_balp:"soit, en % de l’AUE moyen",
+   s_rich:"Contribution des 10 % les plus riches (€ / an)", s_dec:"Gain ou perte par décile de niveau de vie", s_note:"Données de répartition (INSEE) intégrées au classeur d’origine ; 31 millions de ménages.", s_fix:"Décile 2-3 : voir « Points à vérifier » dans l’onglet « Et vous ? »." },
+ et:{ tb1:"Ja teie?", tb2:"Ühiskonna jaoks", s_in:"5° Rahastus väljaspool sissemakseid (miljardit € aastas)", af:"Peretoetuste sissemaks 3,3 % lisandväärtusest", tva:"Käibemaks − sissemaksete vähendamine",
+   pfg:"Progressiivsus ka detsiilidele 2 ja 3 (algses lahtris on tühi).", s_ttl:"Mida see ühiskonna jaoks muudaks?", s_avg:"Keskmine leibkond: netotulu kuus", s_bal:"Keskmine ülejääk / puudujääk leibkonna kohta kuus", s_balp:"ehk % keskmisest AUE-st",
+   s_rich:"Rikkaima 10 % panus (€ aastas)", s_dec:"Kasu või kaotus elatustaseme detsiili järgi", s_note:"Jaotusandmed (INSEE) on algsest failist; 31 miljonit leibkonda.", s_fix:"Detsiilid 2–3: vt „Kontrollimist vajavad kohad“ vahelehel „Ja teie?“." } };
+Object.assign(T.fr, TS.fr); Object.assign(T.et, TS.et); S.tab = "me"; S.af = 60; S.tva = 50;
+const DL = ["0–10 %","10–20 %","20–30 %","30–40 %","40–50 %","50–60 %","60–70 %","70–80 %","80–90 %","90–99,9 %","99,9–100 %"];
+
+/*PRE*/
+// Cas types : feuilles « 5 SMIC », « 6 MAMAN SOLO », « 7 RETRAITE » du premier classeur, exprimées comme situations de foyer.
+const m = (o, n = "") => ({ cat:"a", brut:0, net:n, pat:0, rpb:0, rpn:0, aides:0, af:0, imp:0, ifi:0, mut:0, ...o }), m2 = o => m({ cat:"", net:0, ...o }), W = [0,0,0];
+const PRE = [ // [groupe, FR, ET, personne 1, personne 2, enfants, seuil de pauvreté]
+ ["smic","Au RSA, sans emploi","RSA-l, töötu", m({ aides:863 }), m2(), W, 1280],
+ ["smic","Mi-temps (901 € brut)","Osaline (901 € bruto)", m({ brut:901, aides:470 }), m2(), W, 1280],
+ ["smic","4 jours – 28 h (1 442 € brut)","4 päeva – 28 h (1442 € bruto)", m({ brut:1442, aides:290 }), m2(), W, 1280],
+ ["smic","Plein temps – 35 h (1 802 € brut)","Täistööaeg – 35 h (1802 € bruto)", m({ brut:1802, aides:250 }), m2(), W, 1280],
+ ["solo","Sans emploi","Töötu", m({ aides:2250 }), m2(), [1,2,0], 2950],
+ ["solo","Mi-temps (901 € brut)","Osaline (901 € bruto)", m({ brut:901, aides:1916 }), m2(), [1,2,0], 2950],
+ ["solo","Plein temps (1 802 € brut)","Täistööaeg (1802 € bruto)", m({ brut:1802, aides:1680 }), m2(), [1,2,0], 2950],
+ ["ret","Seul·e, sans pension (ASPA)","Üksi, pensioni ei ole (ASPA)", m({ cat:"r", aides:1034, mut:125 }), m2(), W, 1280],
+ ["ret","Seul·e, pension 1 660 € + patrimoine 150 000 €","Üksi, pension 1660 € + vara 150 000 €", m({ cat:"r", brut:1660, net:1494, pat:150000, mut:125 }), m2(), W, 1280],
+ ["ret","Couple : une pension de 1 100 €, l’autre sans","Paar: üks pension 1100 €, teisel puudub", m({ cat:"r", brut:1100, net:990, aides:615, mut:125 }), m2({ cat:"r" }), W, 1920],
+ ["ret","Couple : deux pensions de 1 100 € (2 SMIC)","Paar: kaks pensioni 1100 € (2 alampalka)", m({ cat:"r", brut:1100, net:990, mut:125 }), m2({ cat:"r", brut:1100, net:990, mut:125 }), W, 1920],
+ ["ret","Couple : 2 × 2 000 € + patrimoine 150 000 €","Paar: 2 × 2000 € + vara 150 000 €", m({ cat:"r", brut:2000, net:1800, pat:150000, imp:100, mut:125 }), m2({ cat:"r", brut:2000, net:1800, mut:125 }), W, 1920]
+];
+/*ENDPRE*/
+Object.assign(T.fr, { pre:"Cas types (ou saisissez votre situation ci-dessous)", cust:"— Ma situation —", g_smic:"Travailleur·se au SMIC", g_solo:"Mère seule, 3 enfants", g_ret:"Personnes retraitées", auto:"auto : 0,79 × brut", thr:"Seuil de pauvreté (60 % du revenu médian)", above:"au-dessus", below:"en dessous" });
+Object.assign(T.et, { pre:"Näidisjuhtumid (või sisestage oma olukord allpool)", cust:"— Minu olukord —", g_smic:"Alampalgaga töötaja", g_solo:"Üksikema, 3 last", g_ret:"Pensionärid", auto:"auto: 0,79 × bruto", thr:"Vaesuspiir (60 % mediaantulust)", above:"üle piiri", below:"alla piiri" });
+S.preset = ""; S.thr = 0;
+function presetCard() {
+  const g = k => PRE.map((c, i) => c[0] === k ? `<option value="${i}" ${S.preset === String(i) ? "selected" : ""}>${c[L === "fr" ? 1 : 2]}</option>` : "").join("");
+  return `<div class="card me"><h2>${t("pre")}</h2><select data-pre><option value="">${t("cust")}</option>` +
+    ["smic","solo","ret"].map(k => `<optgroup label="${t("g_" + k)}">${g(k)}</optgroup>`).join("") + `</select></div>`;
+}
+function loadPreset(v) {
+  if (v === "") { S.preset = ""; S.thr = 0; return; }
+  const c = PRE[+v]; S.preset = v; S.p1 = { ...c[3] }; S.p2 = { ...c[4] }; S.kids = [...c[5]]; S.thr = c[6]; render();
+}
+Object.assign(T.fr, { ch:"Charte du MFRB", ch1:"Le revenu de base doit lutter efficacement contre la misère et la précarité.", ch2:"Le revenu de base doit renforcer la solidarité.", ch3:"Le revenu de base doit accompagner la transition écologique.", ch4:"Le revenu de base doit contribuer à une société inclusive.", ch5:"Le revenu de base doit être émancipateur.", ch6:"Le revenu de base doit faciliter l’accès à l’emploi en partageant le temps de travail.", ch7:"Le revenu de base doit compléter et améliorer la protection sociale existante." });
+Object.assign(T.et, { ch:"MFRB harta", ch1:"Põhisissetulek peab tõhusalt võitlema viletsuse ja ebakindlusega.", ch2:"Põhisissetulek peab tugevdama solidaarsust.", ch3:"Põhisissetulek peab toetama keskkonnasäästlikku üleminekut.", ch4:"Põhisissetulek peab aitama kaasa kaasavale ühiskonnale.", ch5:"Põhisissetulek peab olema vabastav.", ch6:"Põhisissetulek peab hõlbustama tööle pääsemist tööaja jagamise kaudu.", ch7:"Põhisissetulek peab täiendama ja parandama olemasolevat sotsiaalkaitset." });
+function charter() { $("#charte").innerHTML = `<h2>${t("ch")}</h2><ol style="margin:0;padding-left:20px">` + [1,2,3,4,5,6,7].map(i => `<li>${t("ch" + i)}</li>`).join("") + "</ol>"; }
+Object.assign(T.fr, { s_ann:"Excédent / déficit annuel (31 M de ménages × 12 mois)", s_ctx:"Contexte : budget de l’État (à titre indicatif)", s_c1:"Recettes supprimées : impôt sur le revenu + IFI", s_c2:"Dépenses supprimées : aides sociales non contributives", s_cn:"Ces deux montants figurent dans le classeur d’origine mais n’entrent dans aucun calcul." });
+Object.assign(T.et, { s_ann:"Aastane ülejääk / puudujääk (31 M leibkonda × 12 kuud)", s_ctx:"Taust: riigieelarve (ainult informatiivne)", s_c1:"Kaotatud tulu: tulumaks + varamaks (IFI)", s_c2:"Kaotatud kulu: mittekontributiivsed sotsiaaltoetused", s_cn:"Need kaks summat on algses failis, kuid ei osale ühegi arvutuses." });
+function socInputs() { return `<div class="card soc"><h2>${t("s_in")}</h2><div class="g">${lab("af", nf("af", S.af))}${lab("tva", nf("tva", S.tva))}
+  <label class="ck" style="grid-column:1/-1"><input type="checkbox" data-fix="pfg" ${FIX.pfg ? "checked" : ""}>${t("pfg")}</label></div><p><small>${t("s_note")}</small></p></div>`; }
+function result2() {
+  const r = societe({ ru:S.ru.map(Number), cot:S.cot / 100, tan:S.tan / 100, prog1:S.prog1, prog2:S.prog2, af:S.af * 1e9, tva:S.tva * 1e9 });
+  const mx = Math.max(...r.g34.map(Math.abs), .01), sg = x => (x >= 0 ? "+" : "") + num(x * 100, 1) + " %";
+  $("#res2").innerHTML = `<h2>${t("s_ttl")}</h2>
+   <div class="row"><span>${t("s_avg")}</span><span>${num(r.dCur, 0)} → <b>${num(r.dNet, 0)} €</b></span></div>
+   <div class="row"><span>${t("s_bal")}</span><b class="${r.bal >= 0 ? "pos" : "neg"}">${num(r.bal, 2)} €</b></div>
+   <div class="row"><span>${t("s_balp")}</span><span>${sg(r.balPct)}</span></div>
+   <div class="row"><span>${t("s_ann")}</span><b class="${r.bal >= 0 ? "pos" : "neg"}">${num(r.bal * 12 * SOC.HH / 1e9, 2)} Md€</b></div>
+   <div class="row"><span>${t("s_rich")}</span><span>${num(r.rich / 1e9, 1)} Md€ (${num(r.richPct * 100, 1)} % AUE)</span></div>
+   <div class="warn"><b>${t("s_ctx")}</b><div class="dl"><span>${t("s_c1")}</span><span>100 Md€</span></div><div class="dl"><span>${t("s_c2")}</span><span>100 Md€</span></div><small>${t("s_cn")}</small></div>
+   <h2 style="margin-top:14px">${t("s_dec")}</h2>` + r.g34.map((g, i) => `<div class="dl"><span>${DL[i]}</span><span>${num(r.cur[i], 0)} → ${num(r.net[i], 0)} €</span><b class="${g >= 0 ? "pos" : "neg"}">${sg(g)}</b></div>
+   <div class="dbar"><i style="width:${Math.max(1, Math.abs(g) / mx * 100)}%;background:var(${g >= 0 ? "--ok" : "--ko"})"></i></div>`).join("");
+}
+function tabs() { document.body.dataset.tab = S.tab; $("#tabs").innerHTML = ["me","soc"].map((k, i) => `<button data-tab="${k}" class="${S.tab === k ? "on" : ""}">${t("tb" + (i + 1))}</button>`).join(""); }
+document.addEventListener("click", e => { if (e.target.dataset.tab) { S.tab = e.target.dataset.tab; tabs(); } });
+render();
+</script>
+</body>
+</html>
