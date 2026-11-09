@@ -19,10 +19,9 @@
 const APPLY_SUGGESTED_FIXES = false;
 const SUGGESTED_FIXES = {
   retiredCoefficientPerson2: APPLY_SUGGESTED_FIXES,       // coefficient 0,75 → 0,66 (personne 2, taxe sur actifs nets)
-  retiredContributionPerson2: APPLY_SUGGESTED_FIXES,      // placement du 0,66 dans la cotisation de la personne 2
-  withdrawalRateDenominator: APPLY_SUGGESTED_FIXES,       // dénominateur du taux de prélèvement
-  netIncomePerson2Formula: APPLY_SUGGESTED_FIXES,         // net d’activité de la personne 2 (formule absente)
-  progressivityDecilesTwoAndThree: APPLY_SUGGESTED_FIXES  // progressivité aussi pour les déciles 2 et 3 (onglet société)
+  retiredContributionPerson2: APPLY_SUGGESTED_FIXES,      // le 0,66 ne s’applique qu’à la pension (cotisation de la personne 2)
+  progressivityDecilesTwoAndThree: APPLY_SUGGESTED_FIXES, // progressivité aussi pour les déciles 2 et 3 (onglet société)
+  decileBasicIncomeFollowsRates: APPLY_SUGGESTED_FIXES    // le RUE par décile suit les montants du RUE saisis (onglet société)
 };
 
 
@@ -67,13 +66,9 @@ function calculateHouseholdBudget(input, fixes = SUGGESTED_FIXES) {
   const childrenBasicIncome = children0to14 * ages[0] + children14to18 * ages[1] + children18to25 * ages[2];
   const householdBasicIncome = basicIncomePerPerson[0] + basicIncomePerPerson[1] + childrenBasicIncome;
 
-  // Net d’activité [ET VOUS!F46] = brut × 0,79. Personne 1 : champ vide = formule d’origine.
-  // ⚠ CONTROLLER : dans l’Excel, G46 (personne 2) n’a PAS de formule → vaut 0 si rien n’est saisi.
-  //   Correction : brut × 0,79 comme pour la personne 1 (netIncomePerson2Formula).
-  const netActivityIncome = [
-    person1.netIncome == null ? person1.grossIncome * 0.79 : person1.netIncome,
-    fixes.netIncomePerson2Formula ? person2.grossIncome * 0.79 : person2.netIncome
-  ];
+  // Net d’activité [ET VOUS!F46, G46] = brut × 0,9 (retraité·e) ou × 0,79 (corrigé par l’auteur). Champ vide = formule d’origine.
+  const netActivityIncome = people.map((person, i) =>
+    person.netIncome == null ? person.grossIncome * (isRetired[i] ? 0.9 : 0.79) : person.netIncome);
 
   // Revenu disponible actuel [F49]
   const currentIncome = people.reduce((total, person, i) =>
@@ -108,12 +103,8 @@ function calculateHouseholdBudget(input, fixes = SUGGESTED_FIXES) {
   const wealthTaxMonthly2 = wealthTaxRate2 * person2.netWealth / 12;                       // [F59]
   const totalContribution = contribution1 + contribution2 + wealthTaxMonthly1 + wealthTaxMonthly2;   // [F60]
 
-  // ⚠ KONTROLLI : [F61] dénominateur = 0,8*(brut+patrimoine) + RUE, sans le coefficient 0,66 des retraités.
-  //   Correction : RUE + revenu net après cotisation (withdrawalRateDenominator) ; identique sans retraité.
-  const denominator = fixes.withdrawalRateDenominator
-    ? householdBasicIncome + netIncomeAfterFixedContribution
-    : 0.8 * person1.grossIncome + 0.8 * person2.grossIncome + 0.8 * person1.wealthIncomeGross + 0.8 * person2.wealthIncomeGross + householdBasicIncome;
-  const withdrawalRate = denominator ? totalContribution / denominator : null;             // [F61]
+  // Taux de prélèvement [F61] = prélèvement total / revenus nets d’activité et du patrimoine [F53] (corrigé par l’auteur).
+  const withdrawalRate = netIncomeAfterFixedContribution ? totalContribution / netIncomeAfterFixedContribution : null;
 
   const incomeWithBasicIncome = householdBasicIncome + netIncomeAfterFixedContribution - totalContribution;  // [F62]
   const gain = incomeWithBasicIncome - currentIncome;                                       // [O31]
@@ -133,13 +124,13 @@ const SOCIETY_DATA = {
   equivalenceScale: [1.1, 1.15, 1.21, 1.34, 1.46, 1.59, 1.69, 1.82, 1.9, 2, 2],                      // [BILAN!E7:O7] unités de consommation
   householdSharePercent: [10, 10, 10, 10, 10, 10, 10, 10, 10, 9.9, 0.1],                              // [BILAN!E8:O8] part des ménages
   netWealth: [4500, 14000, 35000, 110000, 180000, 250000, 340000, 490000, 750000, 2000000, 10000000],  // [BILAN!E9:O9]
-  grossIncome: [138, 1075, 1675, 2435, 3140, 4000, 4900, 6150, 8112, 15729, 105000],                   // [BILAN!E13:O13]
+  grossIncome: [138, 1075, 1675, 2435, 3140, 4000, 4900, 6150, 8112, 14500, 105000],                   // [BILAN!E13:O13]
   socialBenefits: [700, 500, 400, 300, 250, 200, 120, 80, 65, 40, 0],                                  // [BILAN!E17:O17]
   incomeTax: [0, 0, 0, 20, 30, 50, 100, 200, 550, 2000, 25000],                                        // [BILAN!E18:O18]
-  incomePerUnit: [1050, 1080, 1100, 1150, 1184, 1230, 1240, 1245, 1247, 1250, 1250],                   // [COMPOSITION!L35:L45]
+  basicIncomePerUnit: [1145, 1181, 1191, 1225, 1268, 1305, 1310, 1320, 1341, 1350, 1350],                 // [COMPOSITION!K35:K45] RUE par UC et par décile : valeurs FIXES de l’Excel corrigé
   typicalHouseholdWeight: [3, 19, 14, 25, 10, 10, 5, 9, 4, 1],                                         // [COMPOSITION!C17:C27] poids des foyers-types
   typicalHouseholdUnits: [1, 1, 1, 1.5, 1.8, 2.1, 2.6, 1.8, 1.5, 2.1],                                 // [COMPOSITION!I17:I27]
-  averageIncomePerUnit: 1196.6,                                                                        // [COMPOSITION!L29]
+  referenceBasicIncomePerUnit: 1287.049399198932,                                                      // [COMPOSITION!K29] avec le RUE 300/500/1100 € (référence de ces valeurs fixes)
   householdCount: 31e6                                                                                 // 31 millions de ménages, en dur
 };
 
@@ -167,8 +158,11 @@ function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
   const sumProduct = (values, weights) => values.reduce((total, value, i) => total + value * weights[i], 0);
   const basicIncomePerUnit = sumProduct(typicalHouseholdBasicIncome, data.typicalHouseholdWeight)
                            / sumProduct(data.typicalHouseholdUnits, data.typicalHouseholdWeight);            // [K29]
-  const scaleFactor = basicIncomePerUnit / data.averageIncomePerUnit;                                         // [L33]
-  const basicIncomeByDecile = data.incomePerUnit.map((income, i) => income * scaleFactor * data.equivalenceScale[i]);  // [BILAN!E27:O27]
+  // ⚠ KONTROLLI : dans l’Excel corrigé, [COMPOSITION!K35:K45] sont des valeurs FIXES (avant : revenu par UC × K29/L29).
+  //   Le RUE par décile ne réagit donc plus aux montants du RUE saisis. Correction : mettre ces valeurs à l’échelle de
+  //   K29 / K29 de référence (decileBasicIncomeFollowsRates) — identique à l’Excel tant que le RUE vaut 300/500/1100 €.
+  const scaleFactor = fixes.decileBasicIncomeFollowsRates ? basicIncomePerUnit / data.referenceBasicIncomePerUnit : 1;
+  const basicIncomeByDecile = data.basicIncomePerUnit.map((perUnit, i) => perUnit * scaleFactor * data.equivalenceScale[i]);   // [BILAN!E27:O27]
 
   const currentIncomeByDecile = [], netAfterFixedContribution = [], contributionByDecile = [], wealthTaxByDecile = [];
   const newIncomeByDecile = [], gainByDecile = [], gainRatioByDecile = [];
@@ -182,11 +176,10 @@ function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
 
     // ⚠ KONTROLLI : [F28, G28] testent PRESENTATION!D19 et E19, cellules VIDES → la progressivité n’agit que sur
     //   le 1er décile. Correction : appliquer C19 aussi aux déciles 2 et 3 (progressivityDecilesTwoAndThree).
-    // ⚠ KONTROLLI : [E28] ajoute « +E18 » (impôt du 1er décile, 0 dans les données) : référence parasite.
+    // [E28] : la référence parasite « +E18 » a été supprimée par l’auteur.
     const isProgressive = i === 0 || (fixes.progressivityDecilesTwoAndThree && i < 3) ? input.contributionProgressivity : false;
     if (i <= 2) {
-      contributionByDecile[i] = (isProgressive ? gross * input.contributionRate * gross / 1800 : input.contributionRate * gross)
-                              + (i === 0 ? data.incomeTax[0] : 0);
+      contributionByDecile[i] = isProgressive ? gross * input.contributionRate * gross / 1800 : input.contributionRate * gross;
     } else if (i <= 6) {
       contributionByDecile[i] = input.contributionRate * gross;                                                  // [H28:K28]
     } else {
@@ -225,14 +218,14 @@ function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
    4. ÉTAT DE L’APPLICATION ET CAS TYPES
    ============================================================================ */
 
-/** Personne 1 : revenu net vide ("") = formule d’origine (0,79 × brut). Personne 2 : net saisi à la main (0). */
+/** Revenu net vide ("") = formule d’origine : brut × 0,79, ou × 0,9 pour un·e retraité·e. */
 function firstPerson(overrides = {}) {
   return { situation: "adult", grossIncome: 0, netIncome: "", netWealth: 0, wealthIncomeGross: 0, wealthIncomeNet: 0,
            socialBenefits: 0, familyBenefits: 0, incomeTax: 0, wealthTax: 0, healthInsurance: 0, ...overrides };
 }
 /** Personne 2 : situation "" = personne absente du foyer. */
 function secondPerson(overrides = {}) {
-  return firstPerson({ situation: "", netIncome: 0, ...overrides });
+  return firstPerson({ situation: "", ...overrides });
 }
 
 const NO_CHILDREN = [0, 0, 0];
@@ -264,16 +257,16 @@ const PRESET_HOUSEHOLDS = [
     person1: firstPerson({ situation: "retired", socialBenefits: 1034, healthInsurance: 125 }), person2: secondPerson(),
     children: NO_CHILDREN, povertyThreshold: 1280 },
   { group: "retired", label: { fr: "Seul·e, pension 1 660 € + patrimoine 150 000 €", et: "Üksi, pension 1660 € + vara 150 000 €" },
-    person1: firstPerson({ situation: "retired", grossIncome: 1660, netIncome: 1494, netWealth: 150000, healthInsurance: 125 }), person2: secondPerson(),
+    person1: firstPerson({ situation: "retired", grossIncome: 1660, netWealth: 150000, healthInsurance: 125 }), person2: secondPerson(),
     children: NO_CHILDREN, povertyThreshold: 1280 },
   { group: "retired", label: { fr: "Couple : une pension de 1 100 €, l’autre sans", et: "Paar: üks pension 1100 €, teisel puudub" },
-    person1: firstPerson({ situation: "retired", grossIncome: 1100, netIncome: 990, socialBenefits: 615, healthInsurance: 125 }), person2: secondPerson({ situation: "retired" }),
+    person1: firstPerson({ situation: "retired", grossIncome: 1100, socialBenefits: 615, healthInsurance: 125 }), person2: secondPerson({ situation: "retired" }),
     children: NO_CHILDREN, povertyThreshold: 1920 },
   { group: "retired", label: { fr: "Couple : deux pensions de 1 100 € (2 SMIC)", et: "Paar: kaks pensioni 1100 € (2 alampalka)" },
-    person1: firstPerson({ situation: "retired", grossIncome: 1100, netIncome: 990, healthInsurance: 125 }), person2: secondPerson({ situation: "retired", grossIncome: 1100, netIncome: 990, healthInsurance: 125 }),
+    person1: firstPerson({ situation: "retired", grossIncome: 1100, healthInsurance: 125 }), person2: secondPerson({ situation: "retired", grossIncome: 1100, healthInsurance: 125 }),
     children: NO_CHILDREN, povertyThreshold: 1920 },
   { group: "retired", label: { fr: "Couple : 2 × 2 000 € + patrimoine 150 000 €", et: "Paar: 2 × 2000 € + vara 150 000 €" },
-    person1: firstPerson({ situation: "retired", grossIncome: 2000, netIncome: 1800, netWealth: 150000, incomeTax: 100, healthInsurance: 125 }), person2: secondPerson({ situation: "retired", grossIncome: 2000, netIncome: 1800, healthInsurance: 125 }),
+    person1: firstPerson({ situation: "retired", grossIncome: 2000, netWealth: 150000, incomeTax: 100, healthInsurance: 125 }), person2: secondPerson({ situation: "retired", grossIncome: 2000, healthInsurance: 125 }),
     children: NO_CHILDREN, povertyThreshold: 1920 }
 ];
 
@@ -322,11 +315,11 @@ function formatSignedPercent(ratio) {
   return (ratio >= 0 ? "+" : "") + formatNumber(ratio * 100, 1) + " %";
 }
 
-/** Convertit les champs saisis (texte) d’une personne en nombres ; netIncome vide → null (= formule automatique pour la personne 1). */
-function toNumericPerson(person, isFirstPerson) {
+/** Convertit les champs saisis (texte) d’une personne en nombres ; netIncome vide → null (= formule automatique d’origine). */
+function toNumericPerson(person) {
   const numeric = Object.fromEntries(Object.entries(person).map(([key, value]) =>
     [key, key === "situation" ? value : Number(value) || 0]));
-  if (isFirstPerson) numeric.netIncome = person.netIncome === "" ? null : Number(person.netIncome) || 0;
+  numeric.netIncome = person.netIncome === "" ? null : Number(person.netIncome) || 0;
   return numeric;
 }
 
@@ -391,7 +384,7 @@ function personCardHtml(personKey) {
   const options = situations.map(situation =>
     `<option value="${situation}" ${person.situation === situation ? "selected" : ""}>${translate(situation ? "situation_" + situation : "situation_none")}</option>`).join("");
   const fields = PERSON_FIELDS.map(field => labeledFieldHtml(field, numberInputHtml(
-    `${personKey}.${field}`, person[field], 1, field === "netIncome" && personKey === "person1" ? translate("autoNetIncome") : ""))).join("");
+    `${personKey}.${field}`, person[field], 1, field === "netIncome" ? translate("autoNetIncome") : ""))).join("");
   return `<div class="card household-only"><h2>${translate(personKey)}</h2><div class="field-grid">`
     + labeledFieldHtml("situation", `<select data-field="${personKey}.situation">${options}</select>`) + fields + `</div></div>`;
 }
@@ -399,7 +392,7 @@ function personCardHtml(personKey) {
 /** Cases à cocher des « points à vérifier » du classeur d’origine (corrections suggérées). */
 function fixesCardHtml() {
   return `<div class="card household-only"><details><summary>${translate("fixesTitle")}</summary><p><small>${translate("fixesNote")}</small></p>`
-    + ["retiredCoefficientPerson2", "retiredContributionPerson2", "withdrawalRateDenominator", "netIncomePerson2Formula"]
+    + ["retiredCoefficientPerson2", "retiredContributionPerson2"]
         .map(fix => checkboxRowHtml("data-fix", fix, SUGGESTED_FIXES[fix], fix)).join("")
     + `</details></div>`;
 }
@@ -411,6 +404,8 @@ function societyInputsHtml() {
     + labeledFieldHtml("vatLabel", numberInputHtml("vatBillions", state.vatBillions))
     + checkboxRowHtml("data-fix", "progressivityDecilesTwoAndThree", SUGGESTED_FIXES.progressivityDecilesTwoAndThree,
                       "progressivityDecilesTwoAndThree", ' style="grid-column:1/-1"')
+    + checkboxRowHtml("data-fix", "decileBasicIncomeFollowsRates", SUGGESTED_FIXES.decileBasicIncomeFollowsRates,
+                      "decileBasicIncomeFollowsRates", ' style="grid-column:1/-1"')
     + `</div><p><small>${translate("societyNote")}</small></p></div>`;
 }
 
@@ -444,8 +439,8 @@ function renderHouseholdResult() {
   const result = calculateHouseholdBudget({
     ...getSharedInput(),
     children: state.children.map(Number),
-    person1: toNumericPerson(state.person1, true),
-    person2: toNumericPerson(state.person2, false)
+    person1: toNumericPerson(state.person1),
+    person2: toNumericPerson(state.person2)
   });
   const maxIncome = Math.max(result.currentIncome, result.incomeWithBasicIncome, 1);
   const gainClass = result.gain >= 0 ? "positive" : "negative";
