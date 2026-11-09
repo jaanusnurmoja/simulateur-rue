@@ -8,7 +8,7 @@
 
 ### Mis see on
 
-Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja.
+Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja. Excelite autor: Guy Valette (Prantsusmaa, https://guyvaletteparis.wordpress.com/)
 
 Rakendusel on kaks vahelehte:
 
@@ -57,7 +57,11 @@ Praegused neli parandusvõimalust:
 
 ### Kontroll
 
-Arvutusi on testitud Exceli salvestatud väärtuste vastu: parandatud BILAN-i leht (saldo −29,10 €/kuu, rikkaima 10% panus 27,54 miljardit €, detsiilide kaupa), parandatud ET VOUS juhtum ja kõik 12 näidisjuhtumit lehtedelt SMIC, MAMAN SOLO ja RETRAITE. Testid on tehtud Node.js-is. **Liidest ei ole päris brauseris läbi proovitud**, seega tasub paigutust ja mobiilivaadet ise üle vaadata.
+Arvutusi on testitud Exceli salvestatud väärtuste vastu: parandatud BILAN-i leht (saldo −29,10 €/kuu, rikkaima 10% panus 27,54 miljardit €, detsiilide kaupa), parandatud ET VOUS juhtum ja kõik 12 näidisjuhtumit lehtedelt SMIC, MAMAN SOLO ja RETRAITE. Testid on tehtud Node.js-is. 
+
+**Liidest ei ole päris brauseris läbi proovitud**, seega tasub paigutust ja mobiilivaadet ise üle vaadata. NB! See on Claude.ai sõnum.
+
+**Liidest on võimalik päris brauseris töötamas näha https://kodanikupalk.ee/varia/calcfrance**
 
 ### Piirangud
 
@@ -72,7 +76,7 @@ Arvutusi on testitud Exceli salvestatud väärtuste vastu: parandatud BILAN-i le
 
 ### De quoi s’agit-il ?
 
-Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation.
+Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation. L'auteur des calculateurs Exccel: Guy Valette (France, https://guyvaletteparis.wordpress.com/)
 
 L’application comporte deux onglets :
 
@@ -121,7 +125,11 @@ Les quatre corrections disponibles :
 
 ### Vérification
 
-Les calculs ont été testés contre les valeurs enregistrées dans Excel : la feuille BILAN corrigée (solde de −29,10 €/mois, contribution des 10 % les plus riches de 27,54 milliards €, valeurs par décile), le cas ET VOUS corrigé et les 12 cas types des feuilles SMIC, MAMAN SOLO et RETRAITE. Les tests ont été exécutés sous Node.js. **L’interface n’a pas été essayée dans un vrai navigateur** : il convient de vérifier soi-même la mise en page et l’affichage mobile.
+Les calculs ont été testés contre les valeurs enregistrées dans Excel : la feuille BILAN corrigée (solde de −29,10 €/mois, contribution des 10 % les plus riches de 27,54 milliards €, valeurs par décile), le cas ET VOUS corrigé et les 12 cas types des feuilles SMIC, MAMAN SOLO et RETRAITE. Les tests ont été exécutés sous Node.js. 
+
+**L’interface n’a pas été essayée dans un vrai navigateur** : il convient de vérifier soi-même la mise en page et l’affichage mobile. (NB! C'est le message de Claude.ai)
+
+**On peut le voir foncionner à: https://kodanikupalk.ee/varia/calcfrance** 
 
 ### Limites
 
