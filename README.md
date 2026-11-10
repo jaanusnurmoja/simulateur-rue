@@ -70,7 +70,7 @@ Testid on tehtud Node.js-is. **Liidest ei ole päris brauseris läbi proovitud**
 
 ### De quoi s’agit-il ?
 
-Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation.
+Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation. L'auteur des calculateurs Exccel: Guy Valette (France, https://guyvaletteparis.wordpress.com/)
 
 L’application comporte deux onglets :
 
