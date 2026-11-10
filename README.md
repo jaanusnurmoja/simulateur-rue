@@ -8,7 +8,7 @@
 
 ### Mis see on
 
-Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja.
+Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja. Excelite autor: Guy Valette (Prantsusmaa, https://guyvaletteparis.wordpress.com/)
 
 Rakendusel on kaks vahelehte:
 
