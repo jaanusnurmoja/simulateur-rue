@@ -56,6 +56,7 @@ Arvutusi on testitud Exceli väärtuste vastu:
 - liidese lihtne kontroll (mõlemad keeled, kõik näidisjuhtumid, mõlemad vahelehed, puuduvaid tõlkeid pole).
 
 Testid on tehtud Node.js-is. **Liidest ei ole päris brauseris läbi proovitud**, seega tasub paigutust ja mobiilivaadet ise üle vaadata.
+**Liidest on võimalik päris brauseris töötamas näha https://kodanikupalk.ee/varia/calcfrance**
 
 ### Piirangud
 
@@ -118,6 +119,7 @@ Les calculs ont été testés contre les valeurs d’Excel :
 - un contrôle simple de l’interface (les deux langues, tous les cas types, les deux onglets, aucune traduction manquante).
 
 Les tests ont été exécutés sous Node.js. **L’interface n’a pas été essayée dans un vrai navigateur** : il convient de vérifier soi-même la mise en page et l’affichage mobile.
+**On peut le voir foncionner à: https://kodanikupalk.ee/varia/calcfrance** 
 
 ### Limites
 
