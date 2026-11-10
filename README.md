@@ -8,7 +8,7 @@
 
 ### Mis see on
 
-Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja. Excelite autor: Guy Valette (Prantsusmaa, https://guyvaletteparis.wordpress.com/)
+Veebirakendus, mis teisendab Prantsusmaa kodanikupalga aktivistide kaks Exceli kalkulaatorit (manustatud pptx-i "Et vous ? Que FERIEZ-VOUS ?") brauseris töötavaks simulaatoriks. Serverit, andmebaasi ega paigaldust pole vaja.
 
 Rakendusel on kaks vahelehte:
 
@@ -34,34 +34,28 @@ Laadige **kõik neli faili samasse kausta** veebikeskkonda ja avage `index.html`
 
 Failis `app.js`, jaotises "4. État de l’application" (`const state`): RUE summad (330/550/1100/1100/1100 €), sissemakse 28%, netovara maks 1,5%, peretoetuste sissemakse 60 miljardit €, käibemaks 50 miljardit €, vaikimisi leibkond. Kõiki neid saab ka lehel muuta.
 
-### Exceli loogika ja "kahtlased kohad"
+### Exceli loogika
 
-Kood järgib Exceli valemeid **täpselt** (ka nende eripärasid) ning iga valemi juures on Exceli lahtriviide, nt `[SIMULATEUR!F56]`. Kohad, mis näivad vead olevat, on märgitud kommentaariga `⚠ KONTROLLI`. Parandus on valmis, aga **vaikimisi välja lülitatud**, et tulemused klapiksid Exceliga. Sisselülitamiseks:
+Kood järgib Exceli valemeid **täpselt** ning iga valemi juures on Exceli lahtriviide, nt `[SIMULATEUR!F56]`. Sees on autori kõik parandused (failid `ET_VOUS_corrigé1.xlsx` ja `Simulateur_corrigé_2.xlsx`):
 
-- kõik korraga: `APPLY_SUGGESTED_FIXES = true` (`app.js` algus), või
-- ükshaaval: lehel märkeruudud ("Points à vérifier" ja vahelehe "Pour la société" sisendid), või `SUGGESTED_FIXES` objekt.
+- maksukoormus = kogusissemakse / tegevus- ja varatulu neto (`F60/F53`);
+- neto tegevustulu = bruto × 0,9 pensionäril, muidu × 0,79, mõlemal isikul automaatselt (lahter jäetakse tühjaks; soovi korral saab käsitsi üle kirjutada);
+- isiku 2 koefitsient 0,66 (C59) ja 0,66 ainult pensionile (F57, sama mis F56);
+- detsiilide RUE järgib sisestatud RUE summasid (`K35:K45` = põhiväärtus × K29 / J29);
+- sissemaksu progressiivsus kehtib detsiilidel 1–3 (F28, G28), parasiitviide `+E18` on eemaldatud.
 
-Praegused neli parandusvõimalust:
-
-| Nimi | Mida muudab |
-|---|---|
-| `retiredCoefficientPerson2` | Isik 2: koefitsient 0,66 asemel 0,75 (netovara maks, pensionär; lahter C59) |
-| `retiredContributionPerson2` | Isik 2: 0,66 rakendub ainult pensionile, mitte varatulule (lahter F57) |
-| `progressivityDecilesTwoAndThree` | Sissemaksu progressiivsus ka detsiilidele 2 ja 3 (lahtrid D19/E19 on Excelis tühjad) |
-| `decileBasicIncomeFollowsRates` | Detsiilide RUE järgib sisestatud RUE summasid (vt allpool) |
-
-### Lahtised küsimused autorile
-
-1. **C59 ja F57** on parandatud Exceli failides muutmata, kuigi autor märkis need vastustes parandatuks või selgitas. Kas tahtis ta neid ka muuta?
-2. **COMPOSITION K35:K45** on parandatud Excelis fikseeritud numbrid (1145…1350). Seetõttu **ei mõjuta RUE summade muutmine ühiskonna lehe tulemusi**. Kui see pole tahtlik, tuleks `decileBasicIncomeFollowsRates` vaikimisi sisse lülitada. Kui RUE on 300/500/1100 €, annab see täpselt Exceli väärtused.
+Koodis on `⚠ KONTROLLI` märgitud veel kaks Exceli eripära, mida autor pole kommenteerinud ja mis on reprodutseeritud sellisena nagu need on: detsiili keskmise lahtri D31 märk on vastupidine veergudele E31:O31 ning "paar ilma lasteta" (D20) kasutab 25+ ja 65+ summat (mõju puudub, kuni need on võrdsed).
 
 ### Kontroll
 
-Arvutusi on testitud Exceli salvestatud väärtuste vastu: parandatud BILAN-i leht (saldo −29,10 €/kuu, rikkaima 10% panus 27,54 miljardit €, detsiilide kaupa), parandatud ET VOUS juhtum ja kõik 12 näidisjuhtumit lehtedelt SMIC, MAMAN SOLO ja RETRAITE. Testid on tehtud Node.js-is. 
+Arvutusi on testitud Exceli väärtuste vastu:
 
-**Liidest ei ole päris brauseris läbi proovitud**, seega tasub paigutust ja mobiilivaadet ise üle vaadata. NB! See on Claude.ai sõnum.
+- ühiskonna leht: kõik 11 detsiili, keskmised, saldo (−32,52 €/kuu) ja rikkaima 10% panus (27,54 miljardit €) vs `Simulateur_corrigé_2.xlsx`;
+- kodumajapidamise leht: kaks mitmekesist juhtumit (sh pensionär isik 2 varaga, progressiivsus sees ja väljas), mille Exceli tulemused on arvutatud uuesti LibreOffice'is faili `ET_VOUS_corrigé1.xlsx` põhjal;
+- kõik 12 näidisjuhtumit lehtedelt SMIC, MAMAN SOLO ja RETRAITE;
+- liidese lihtne kontroll (mõlemad keeled, kõik näidisjuhtumid, mõlemad vahelehed, puuduvaid tõlkeid pole).
 
-**Liidest on võimalik päris brauseris töötamas näha https://kodanikupalk.ee/varia/calcfrance**
+Testid on tehtud Node.js-is. **Liidest ei ole päris brauseris läbi proovitud**, seega tasub paigutust ja mobiilivaadet ise üle vaadata.
 
 ### Piirangud
 
@@ -76,7 +70,7 @@ Arvutusi on testitud Exceli salvestatud väärtuste vastu: parandatud BILAN-i le
 
 ### De quoi s’agit-il ?
 
-Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation. L'auteur des calculateurs Exccel: Guy Valette (France, https://guyvaletteparis.wordpress.com/)
+Une application web qui transforme les deux calculateurs Excel du mouvement pour le revenu de base (intégrés dans le fichier pptx « Et vous ? Que FERIEZ-VOUS ? ») en un simulateur fonctionnant dans le navigateur. Aucun serveur, aucune base de données, aucune installation.
 
 L’application comporte deux onglets :
 
@@ -102,34 +96,28 @@ Déposez **les quatre fichiers dans le même dossier** de votre hébergement web
 
 Dans `app.js`, section « 4. État de l’application » (`const state`) : montants du RUE (330/550/1100/1100/1100 €), cotisation de 28 %, taxe sur les actifs nets de 1,5 %, cotisations A.F. de 60 milliards €, TVA de 50 milliards €, foyer par défaut. Tous ces paramètres sont aussi modifiables dans la page.
 
-### Logique d’Excel et « points à vérifier »
+### Logique d’Excel
 
-Le code reproduit les formules Excel **à l’identique** (y compris leurs particularités). Chaque formule est accompagnée de la référence de cellule d’origine, ex. `[SIMULATEUR!F56]`. Les endroits qui semblent être des erreurs sont signalés par un commentaire `⚠ KONTROLLI`. Une correction est prête, mais **désactivée par défaut**, pour que les résultats concordent avec Excel. Pour l’activer :
+Le code reproduit les formules Excel **à l’identique**. Chaque formule est accompagnée de la référence de cellule d’origine, ex. `[SIMULATEUR!F56]`. Toutes les corrections de l’auteur sont intégrées (fichiers `ET_VOUS_corrigé1.xlsx` et `Simulateur_corrigé_2.xlsx`) :
 
-- toutes à la fois : `APPLY_SUGGESTED_FIXES = true` (début de `app.js`), ou
-- une par une : cases à cocher dans la page (« Points à vérifier » et saisies de l’onglet « Pour la société »), ou objet `SUGGESTED_FIXES`.
+- taux de prélèvement = prélèvement total / revenus nets d’activité et du patrimoine (`F60/F53`) ;
+- net d’activité = brut × 0,9 pour un·e retraité·e, sinon × 0,79, automatique pour les deux personnes (champ laissé vide ; on peut le saisir à la main pour le remplacer) ;
+- coefficient 0,66 pour la personne 2 (C59) et 0,66 appliqué seulement à la pension (F57, identique à F56) ;
+- le RUE par décile suit les montants du RUE saisis (`K35:K45` = valeur de base × K29 / J29) ;
+- la progressivité de la cotisation s’applique aux déciles 1 à 3 (F28, G28) ; la référence parasite `+E18` est supprimée.
 
-Les quatre corrections disponibles :
-
-| Nom | Effet |
-|---|---|
-| `retiredCoefficientPerson2` | Personne 2 : coefficient 0,66 au lieu de 0,75 (taxe sur actifs nets, retraité·e ; cellule C59) |
-| `retiredContributionPerson2` | Personne 2 : le 0,66 ne s’applique qu’à la pension, pas aux revenus du patrimoine (cellule F57) |
-| `progressivityDecilesTwoAndThree` | Progressivité de la cotisation aussi pour les déciles 2 et 3 (cellules D19/E19 vides dans Excel) |
-| `decileBasicIncomeFollowsRates` | Le RUE par décile suit les montants du RUE saisis (voir ci-dessous) |
-
-### Questions ouvertes pour l’auteur
-
-1. **C59 et F57** sont inchangés dans les fichiers Excel corrigés, alors que l’auteur les a indiqués comme corrigés ou expliqués dans sa réponse. Souhaitait-il aussi les modifier ?
-2. **COMPOSITION K35:K45** sont, dans l’Excel corrigé, des valeurs fixes (1145…1350). **Modifier les montants du RUE n’a donc plus aucun effet sur l’onglet société.** Si ce n’est pas voulu, il faudrait activer `decileBasicIncomeFollowsRates` par défaut. Pour un RUE de 300/500/1100 €, les valeurs sont strictement celles d’Excel.
+Deux particularités d’Excel, non commentées par l’auteur, sont signalées par `⚠ KONTROLLI` dans le code et reproduites telles quelles : le signe de la cellule moyenne D31 est inversé par rapport aux colonnes E31:O31, et le « couple sans enfant » (D20) additionne les montants 25+ et 65+ (sans effet tant qu’ils sont égaux).
 
 ### Vérification
 
-Les calculs ont été testés contre les valeurs enregistrées dans Excel : la feuille BILAN corrigée (solde de −29,10 €/mois, contribution des 10 % les plus riches de 27,54 milliards €, valeurs par décile), le cas ET VOUS corrigé et les 12 cas types des feuilles SMIC, MAMAN SOLO et RETRAITE. Les tests ont été exécutés sous Node.js. 
+Les calculs ont été testés contre les valeurs d’Excel :
 
-**L’interface n’a pas été essayée dans un vrai navigateur** : il convient de vérifier soi-même la mise en page et l’affichage mobile. (NB! C'est le message de Claude.ai)
+- onglet société : les 11 déciles, les moyennes, le solde (−32,52 €/mois) et la contribution des 10 % les plus riches (27,54 milliards €) comparés à `Simulateur_corrigé_2.xlsx` ;
+- onglet foyer : deux cas variés (dont une personne 2 retraitée avec patrimoine, progressivité activée et désactivée), dont les résultats Excel ont été recalculés dans LibreOffice à partir de `ET_VOUS_corrigé1.xlsx` ;
+- les 12 cas types des feuilles SMIC, MAMAN SOLO et RETRAITE ;
+- un contrôle simple de l’interface (les deux langues, tous les cas types, les deux onglets, aucune traduction manquante).
 
-**On peut le voir foncionner à: https://kodanikupalk.ee/varia/calcfrance** 
+Les tests ont été exécutés sous Node.js. **L’interface n’a pas été essayée dans un vrai navigateur** : il convient de vérifier soi-même la mise en page et l’affichage mobile.
 
 ### Limites
 

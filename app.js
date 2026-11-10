@@ -2,27 +2,19 @@
    Simulateur du revenu universel d’existence (RUE) — application
    Port fidèle de deux classeurs Excel. Les références entre crochets, ex. [SIMULATEUR!F56],
    renvoient aux cellules d’origine. Les formules sont reproduites à l’identique, y compris
-   leurs particularités ; les endroits suspects sont marqués « ⚠ KONTROLLI ».
+   leurs particularités ; les endroits qui restent suspects sont marqués « ⚠ KONTROLLI ».
+   Version basée sur les classeurs corrigés par l’auteur (ET_VOUS_corrigé1, Simulateur_corrigé_2).
 
    Fichiers : index.html (structure), styles.css (apparence), translations.js (textes FR/ET), app.js (ce fichier).
-   Sections : 1. Corrections suggérées  2. Calcul « Et vous ? »  3. Calcul « Pour la société »
+   Sections : 1. Constantes  2. Calcul « Et vous ? »  3. Calcul « Pour la société »
               4. État et cas types  5. Outils d’affichage  6. Blocs HTML  7. Rendu  8. Événements et démarrage
    ============================================================================ */
 
 
 /* ============================================================================
-   1. CORRECTIONS SUGGÉRÉES
-   Par défaut, les calculs reproduisent l’Excel à l’identique. Mettre APPLY_SUGGESTED_FIXES à true
-   (ou un seul interrupteur) applique les corrections proposées. Les noms servent aussi de clés
-   de traduction (translations.js) pour l’affichage des cases à cocher.
+   1. CONSTANTES
    ============================================================================ */
-const APPLY_SUGGESTED_FIXES = false;
-const SUGGESTED_FIXES = {
-  retiredCoefficientPerson2: APPLY_SUGGESTED_FIXES,       // coefficient 0,75 → 0,66 (personne 2, taxe sur actifs nets)
-  retiredContributionPerson2: APPLY_SUGGESTED_FIXES,      // le 0,66 ne s’applique qu’à la pension (cotisation de la personne 2)
-  progressivityDecilesTwoAndThree: APPLY_SUGGESTED_FIXES, // progressivité aussi pour les déciles 2 et 3 (onglet société)
-  decileBasicIncomeFollowsRates: APPLY_SUGGESTED_FIXES    // le RUE par décile suit les montants du RUE saisis (onglet société)
-};
+const RETIRED_PENSION_COEFFICIENT = 0.66;   // la pension de retraite d’activité compte pour 66 % [C56:C59, F56:F57]
 
 
 /* ============================================================================
@@ -34,9 +26,9 @@ const SUGGESTED_FIXES = {
  * si la base de calcul est sous le seuil, le taux maximal est réduit proportionnellement.
  * [SIMULATEUR!C56:C59]
  */
-function progressiveRate(person, isRetired, maxRate, isProgressive, threshold, retiredCoefficient) {
+function progressiveRate(person, isRetired, maxRate, isProgressive, threshold) {
   const base = isRetired
-    ? retiredCoefficient * person.grossIncome + person.wealthIncomeGross
+    ? RETIRED_PENSION_COEFFICIENT * person.grossIncome + person.wealthIncomeGross
     : person.grossIncome + person.wealthIncomeGross;
   return isProgressive && base < threshold ? maxRate * (base / threshold) : maxRate;
 }
@@ -47,11 +39,10 @@ function progressiveRate(person, isRetired, maxRate, isProgressive, threshold, r
  * @param {object} input  basicIncomeByAge [0-14, 14-18, 18-25, 25+, 65+], contributionRate, wealthTaxRate,
  *                        contributionProgressivity, wealthTaxProgressivity, children [0-14, 14-18, 18-25],
  *                        person1, person2 (situation : "youngAdult" | "adult" | "retired" | "" = absente)
- * @param {object} fixes  interrupteurs de SUGGESTED_FIXES
  * @returns {object} currentIncome, incomeWithBasicIncome, gain, gainRatio, householdBasicIncome,
  *                   totalContribution, withdrawalRate (tous par mois, en €)
  */
-function calculateHouseholdBudget(input, fixes = SUGGESTED_FIXES) {
+function calculateHouseholdBudget(input) {
   const ages = input.basicIncomeByAge;
   const people = [input.person1, input.person2];
   const [person1, person2] = people;
@@ -78,26 +69,23 @@ function calculateHouseholdBudget(input, fixes = SUGGESTED_FIXES) {
   // Revenu net d’activité et du patrimoine après la cotisation actuelle de 20 % (0,8 codé en dur), pension à 66 % [F53]
   const netIncomeAfterFixedContribution = people.reduce((total, person, i) =>
     total + (isRetired[i]
-      ? 0.8 * (0.66 * person.grossIncome + person.wealthIncomeGross)
+      ? 0.8 * (RETIRED_PENSION_COEFFICIENT * person.grossIncome + person.wealthIncomeGross)
       : 0.8 * (person.grossIncome + person.wealthIncomeGross)), 0);
 
   // Taux de cotisation [C56, C57] (seuil 1 800 €) et de taxe sur les actifs nets [C58, C59] (seuil 3 000 €)
-  const contributionRate1 = progressiveRate(person1, isRetired[0], input.contributionRate, input.contributionProgressivity, 1800, 0.66);
-  const contributionRate2 = progressiveRate(person2, isRetired[1], input.contributionRate, input.contributionProgressivity, 1800, 0.66);
-  const wealthTaxRate1 = progressiveRate(person1, isRetired[0], input.wealthTaxRate, input.wealthTaxProgressivity, 3000, 0.66);
-  // ⚠ KONTROLLI : [C59] utilise 0,75 alors que C56–C58 utilisent 0,66. Correction : 0,66 (retiredCoefficientPerson2).
-  const wealthTaxRate2 = progressiveRate(person2, isRetired[1], input.wealthTaxRate, input.wealthTaxProgressivity, 3000,
-                                         fixes.retiredCoefficientPerson2 ? 0.66 : 0.75);
+  const contributionRate1 = progressiveRate(person1, isRetired[0], input.contributionRate, input.contributionProgressivity, 1800);
+  const contributionRate2 = progressiveRate(person2, isRetired[1], input.contributionRate, input.contributionProgressivity, 1800);
+  const wealthTaxRate1 = progressiveRate(person1, isRetired[0], input.wealthTaxRate, input.wealthTaxProgressivity, 3000);
+  // [C59] : même coefficient 0,66 que C56–C58 (corrigé par l’auteur, c’était 0,75).
+  const wealthTaxRate2 = progressiveRate(person2, isRetired[1], input.wealthTaxRate, input.wealthTaxProgressivity, 3000);
 
   const contribution1 = isRetired[0]
-    ? contributionRate1 * (0.66 * person1.grossIncome + person1.wealthIncomeGross)          // [F56]
+    ? contributionRate1 * (RETIRED_PENSION_COEFFICIENT * person1.grossIncome + person1.wealthIncomeGross)          // [F56]
     : contributionRate1 * (person1.grossIncome + person1.wealthIncomeGross);
-  // ⚠ KONTROLLI : [F57] écrit C57*0,66*(brut+patrimoine) : le 0,66 s’applique aussi aux revenus du patrimoine,
-  //   contrairement à F56. Correction : C57*(0,66*brut+patrimoine) (retiredContributionPerson2).
-  let contribution2;
-  if (!isRetired[1]) contribution2 = contributionRate2 * (person2.grossIncome + person2.wealthIncomeGross);
-  else if (fixes.retiredContributionPerson2) contribution2 = contributionRate2 * (0.66 * person2.grossIncome + person2.wealthIncomeGross);
-  else contribution2 = contributionRate2 * 0.66 * (person2.grossIncome + person2.wealthIncomeGross);
+  // [F57] : le 0,66 ne s’applique qu’à la pension, comme dans F56 (corrigé par l’auteur).
+  const contribution2 = isRetired[1]
+    ? contributionRate2 * (RETIRED_PENSION_COEFFICIENT * person2.grossIncome + person2.wealthIncomeGross)
+    : contributionRate2 * (person2.grossIncome + person2.wealthIncomeGross);
 
   const wealthTaxMonthly1 = wealthTaxRate1 * person1.netWealth / 12;                       // [F58]
   const wealthTaxMonthly2 = wealthTaxRate2 * person2.netWealth / 12;                       // [F59]
@@ -127,10 +115,10 @@ const SOCIETY_DATA = {
   grossIncome: [138, 1075, 1675, 2435, 3140, 4000, 4900, 6150, 8112, 14500, 105000],                   // [BILAN!E13:O13]
   socialBenefits: [700, 500, 400, 300, 250, 200, 120, 80, 65, 40, 0],                                  // [BILAN!E17:O17]
   incomeTax: [0, 0, 0, 20, 30, 50, 100, 200, 550, 2000, 25000],                                        // [BILAN!E18:O18]
-  basicIncomePerUnit: [1145, 1181, 1191, 1225, 1268, 1305, 1310, 1320, 1341, 1350, 1350],                 // [COMPOSITION!K35:K45] RUE par UC et par décile : valeurs FIXES de l’Excel corrigé
+  basicIncomePerUnit: [1145, 1181, 1191, 1225, 1268, 1305, 1310, 1320, 1341, 1350, 1350],                 // [COMPOSITION!K35:K45] valeurs de base ; l’Excel les multiplie par K29 / J29
   typicalHouseholdWeight: [3, 19, 14, 25, 10, 10, 5, 9, 4, 1],                                         // [COMPOSITION!C17:C27] poids des foyers-types
   typicalHouseholdUnits: [1, 1, 1, 1.5, 1.8, 2.1, 2.6, 1.8, 1.5, 2.1],                                 // [COMPOSITION!I17:I27]
-  referenceBasicIncomePerUnit: 1287.049399198932,                                                      // [COMPOSITION!K29] avec le RUE 300/500/1100 € (référence de ces valeurs fixes)
+  referenceBasicIncomePerUnit: 1287.05,                                                                // [COMPOSITION!J29] K29 de référence (RUE 300/500/1100 €)
   householdCount: 31e6                                                                                 // 31 millions de ménages, en dur
 };
 
@@ -139,10 +127,9 @@ const SOCIETY_DATA = {
  *
  * @param {object} input  basicIncomeByAge, contributionRate, wealthTaxRate, contributionProgressivity,
  *                        wealthTaxProgressivity, familyContribution (€ / an), vatContribution (€ / an)
- * @param {object} fixes  interrupteurs de SUGGESTED_FIXES
  * @returns {object} *ByDecile (tableaux de 11 valeurs), moyennes, monthlyBalance, richestContribution…
  */
-function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
+function calculateSocietyBalance(input) {
   const data = SOCIETY_DATA;
   const ages = input.basicIncomeByAge;
   const weightedAverage = values => values.reduce((total, value, i) => total + value * data.householdSharePercent[i], 0) / 100;
@@ -158,10 +145,8 @@ function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
   const sumProduct = (values, weights) => values.reduce((total, value, i) => total + value * weights[i], 0);
   const basicIncomePerUnit = sumProduct(typicalHouseholdBasicIncome, data.typicalHouseholdWeight)
                            / sumProduct(data.typicalHouseholdUnits, data.typicalHouseholdWeight);            // [K29]
-  // ⚠ KONTROLLI : dans l’Excel corrigé, [COMPOSITION!K35:K45] sont des valeurs FIXES (avant : revenu par UC × K29/L29).
-  //   Le RUE par décile ne réagit donc plus aux montants du RUE saisis. Correction : mettre ces valeurs à l’échelle de
-  //   K29 / K29 de référence (decileBasicIncomeFollowsRates) — identique à l’Excel tant que le RUE vaut 300/500/1100 €.
-  const scaleFactor = fixes.decileBasicIncomeFollowsRates ? basicIncomePerUnit / data.referenceBasicIncomePerUnit : 1;
+  // [COMPOSITION!K35:K45] = valeur de base × K29 / J29 : le RUE par décile suit les montants du RUE saisis (corrigé par l’auteur).
+  const scaleFactor = basicIncomePerUnit / data.referenceBasicIncomePerUnit;
   const basicIncomeByDecile = data.basicIncomePerUnit.map((perUnit, i) => perUnit * scaleFactor * data.equivalenceScale[i]);   // [BILAN!E27:O27]
 
   const currentIncomeByDecile = [], netAfterFixedContribution = [], contributionByDecile = [], wealthTaxByDecile = [];
@@ -174,12 +159,9 @@ function calculateSocietyBalance(input, fixes = SUGGESTED_FIXES) {
       ? wealth * input.wealthTaxRate * gross / (3000 * 12)
       : input.wealthTaxRate * wealth / 12;                                                                       // [E29:O29]
 
-    // ⚠ KONTROLLI : [F28, G28] testent PRESENTATION!D19 et E19, cellules VIDES → la progressivité n’agit que sur
-    //   le 1er décile. Correction : appliquer C19 aussi aux déciles 2 et 3 (progressivityDecilesTwoAndThree).
-    // [E28] : la référence parasite « +E18 » a été supprimée par l’auteur.
-    const isProgressive = i === 0 || (fixes.progressivityDecilesTwoAndThree && i < 3) ? input.contributionProgressivity : false;
+    // [E28:G28] : la progressivité (PRESENTATION!C19) vaut pour les trois premiers déciles (corrigé par l’auteur).
     if (i <= 2) {
-      contributionByDecile[i] = isProgressive ? gross * input.contributionRate * gross / 1800 : input.contributionRate * gross;
+      contributionByDecile[i] = input.contributionProgressivity ? gross * input.contributionRate * gross / 1800 : input.contributionRate * gross;
     } else if (i <= 6) {
       contributionByDecile[i] = input.contributionRate * gross;                                                  // [H28:K28]
     } else {
@@ -389,23 +371,11 @@ function personCardHtml(personKey) {
     + labeledFieldHtml("situation", `<select data-field="${personKey}.situation">${options}</select>`) + fields + `</div></div>`;
 }
 
-/** Cases à cocher des « points à vérifier » du classeur d’origine (corrections suggérées). */
-function fixesCardHtml() {
-  return `<div class="card household-only"><details><summary>${translate("fixesTitle")}</summary><p><small>${translate("fixesNote")}</small></p>`
-    + ["retiredCoefficientPerson2", "retiredContributionPerson2"]
-        .map(fix => checkboxRowHtml("data-fix", fix, SUGGESTED_FIXES[fix], fix)).join("")
-    + `</details></div>`;
-}
-
-/** Saisies propres à l’onglet « Pour la société » : financement hors cotisations et correction des déciles 2-3. */
+/** Saisies propres à l’onglet « Pour la société » : financement hors cotisations. */
 function societyInputsHtml() {
   return `<div class="card society-only"><h2>${translate("societyInputsTitle")}</h2><div class="field-grid">`
     + labeledFieldHtml("familyContributionLabel", numberInputHtml("familyContributionBillions", state.familyContributionBillions))
     + labeledFieldHtml("vatLabel", numberInputHtml("vatBillions", state.vatBillions))
-    + checkboxRowHtml("data-fix", "progressivityDecilesTwoAndThree", SUGGESTED_FIXES.progressivityDecilesTwoAndThree,
-                      "progressivityDecilesTwoAndThree", ' style="grid-column:1/-1"')
-    + checkboxRowHtml("data-fix", "decileBasicIncomeFollowsRates", SUGGESTED_FIXES.decileBasicIncomeFollowsRates,
-                      "decileBasicIncomeFollowsRates", ' style="grid-column:1/-1"')
     + `</div><p><small>${translate("societyNote")}</small></p></div>`;
 }
 
@@ -422,7 +392,7 @@ function renderPage() {
     button.classList.toggle("is-active", button.dataset.language === state.language));
   queryOne("#input-panel").innerHTML = presetSelectHtml() + basicIncomeCardHtml() + ratesCardHtml() + childrenCardHtml()
     + `<h2 class="household-only section-title">${translate("incomeTitle")}</h2>` + personCardHtml("person1") + personCardHtml("person2")
-    + fixesCardHtml() + societyInputsHtml();
+    + societyInputsHtml();
   renderResults();
   renderTabs();
   renderCharter();
@@ -527,13 +497,9 @@ function handleFieldInput(event) {
   renderResults();
 }
 
-/** Liste des cas types ou case « point à vérifier » cochée / décochée. */
+/** Choix d’un cas type dans la liste déroulante. */
 function handleControlChange(event) {
   if (event.target.dataset.preset !== undefined) loadPreset(event.target.value);
-  if (event.target.dataset.fix) {
-    SUGGESTED_FIXES[event.target.dataset.fix] = event.target.checked;
-    renderResults();
-  }
 }
 
 /** Clic sur le sélecteur de langue (FR / ET). */
